@@ -19,7 +19,13 @@ using namespace std ;
 using namespace boost ;
 
 
-double uniform() ;
+typedef double real_type ;
+
+
+double uniform()
+{
+	return (double) rand() / RAND_MAX ;
+}
 
 
 ///*
@@ -59,7 +65,6 @@ ostream & operator<< ( ostream & out, const pair<First,Second> & t )
 }
 
 
-
 // a functor for accumulate, which generically adds pair.second's
 template <typename Key, typename T>
 struct add_seconds
@@ -69,25 +74,28 @@ struct add_seconds
 	T operator() ( const T & curr_sum, const pair_spec & p )
 	{
 		T res = curr_sum + p.second ;
-
-		cout << "adding " << p.second << " to " << curr_sum
-				<< "; getting " << res << endl ;
+		if ( false )
+		{
+			cout << "adding " << p.second << " to " << curr_sum
+					<< "; getting " << res << endl ;
+		}
 
 		return res ;
 	}
 };
 
 
-template <typename Key, typename T>
-T f_add_seconds( const T & curr_sum, const pair<Key,T> & p )
+
+template <typename Domain=double, typename Range=double, typename Mult=double>
+class Line
 {
-	T res = curr_sum + p.second ;
+public :
+	Range	yintercept ;
+	Mult	slope ;
+} ;
 
-	cout << "adding " << p.second << " to " << curr_sum
-			<< "; getting " << res << endl ;
 
-	return res ;
-}
+
 
 
 
@@ -96,6 +104,7 @@ T f_add_seconds( const T & curr_sum, const pair<Key,T> & p )
 int main( int argc, char * argv [] )
 {
 	int numpoints ;
+	const real_type LENGTH = 4.3 ;
 
 	/* process command line */
 	if ( argc != 2 || sscanf( argv[1], "%d", &numpoints ) == 0 || numpoints < 0 )
@@ -108,27 +117,27 @@ int main( int argc, char * argv [] )
 	srand( (unsigned int) time(NULL) ) ;
 
 	/* generate random points */
-	typedef double real_type ;
 
 	vector<real_type> P(numpoints), Q(numpoints) ;
 	for ( int i=0 ; i < numpoints ; i++ )
 	{
-		P[i] = uniform() ;
-		Q[i] = uniform() ;
+		P[i] = LENGTH * uniform() ;
+		Q[i] = LENGTH * uniform() ;
 	}
 
 	cout << "P equals " << P << endl ;
 	cout << "Q equals " << Q << endl ;
 
-	typedef map<real_type,int> p_coord_to_type ;
-	p_coord_to_type segment ;
 
 
 	/* ALGORITHM */
 
-	/* insert points into the segment, mark type */
+	/* insert points into a segment, mark type */
+	typedef map<real_type,int> p_coord_to_type ;
+	p_coord_to_type segment ;
+	segment[0] = 0 ; segment[LENGTH] = 0 ;
+
 	vector<real_type>::iterator it ;
-	segment[0] = 0 ; segment[1] = 0 ;
 	for ( it=P.begin() ; it != P.end() ; it++ ) segment[*it] = 1 ;
 	for ( it=Q.begin() ; it != Q.end() ; it++ ) segment[*it] = -1 ;
 
@@ -155,8 +164,15 @@ int main( int argc, char * argv [] )
 
 	cout << "level supports: " << level_supp << endl ;
 
+
 	/* compute partial sums to obtain alpha and beta,
 	 * and check the total support [ == 1 ? ] */
+	map< int, Line<> > lineset ;
+	int negative_inf = numeric_limits<int>::min() ;
+
+
+
+
 	real_type total_support ;
 	add_seconds<int,real_type> support_adder ;
 
@@ -172,11 +188,6 @@ int main( int argc, char * argv [] )
 
 
 
-
-double uniform()
-{
-	return (double) rand() / RAND_MAX ;
-}
 
 
 
