@@ -6,16 +6,25 @@
 
 // stdc++
 #include <iostream>
+
+#include <utility>
 #include <iterator>
+
 #include <list>
 #include <map>
 #include <queue>		// for matching
 #include <deque>
 #include <numeric>		// for accumulate
-
+#include <set>
 
 // boost graph
 #include "boost/graph/adjacency_list.hpp"
+
+// utility
+#include "printcontainer.hpp"
+
+// objects
+//#include "Interval.hpp"
 
 
 using namespace std ;
@@ -25,47 +34,14 @@ using namespace boost ;
 typedef double real_type ;
 
 
+
+
 double uniform()
 {
 	return (double) rand() / RAND_MAX ;
 }
 
 
-///*
-template <typename T>
-ostream & operator<< ( ostream & out, const vector<T> & vec )
-{
-	typedef typename vector<T>::const_iterator iter_type ;
-	for ( iter_type it = vec.begin() ; it != vec.end() ; ++it )
-	{
-		if ( it != vec.begin() ) out << ", " ;
-		cout << *it ;
-	}
-	return out ;
-}
-//*/
-
-///*
-template <typename K, typename V>
-ostream & operator<< ( ostream & out, const map<K,V> & M )
-{
-	typedef typename map<K,V>::const_iterator iter_type ;
-	for ( iter_type it = M.begin() ; it != M.end() ; ++it )
-	{
-		if ( it != M.begin() ) out << ", " ;
-		cout << *it ;
-	}
-	return out ;
-}
-//*/
-
-template <typename First, typename Second>
-//template <>
-ostream & operator<< ( ostream & out, const pair<First,Second> & t )
-{
-	out << '(' << t.first << ',' << t.second << ')' ;
-	return out ;
-}
 
 
 // a functor for accumulate, which generically adds pair.second's
@@ -89,6 +65,9 @@ struct add_seconds
 
 
 
+
+
+
 template <typename Domain=double, typename Range=double, typename Mult=double>
 class Line
 {
@@ -107,39 +86,82 @@ ostream & operator<< ( ostream & out, const Line<Domain,Range,Mult> & line )
 }
 
 
-
-template <typename Range=double>
-struct Interval
+/* point class with type (in P or Q) annotation */
+struct Point
 {
-	Range a ;
-	Range b ;
-	Interval( Range a, Range b ) : a(a), b(b) {} ;
-} ;
-
-struct IntervalData
-{
+	double x ;
 	int type ;
-	int level ;
-	IntervalData( int type, int level ) : type(type), level(level) {} ;
+
+	Point() {} ;		// need a default constructor
+	Point ( double x, int type ) : x(x), type(type) {} ;
+	Point ( const Point & p ) : x(p.x), type(p.type) {} ;
 };
 
+//Point & operator= ( Point & p1, const Point & p2 ) { return
+
+bool operator< ( const Point & lhs, const Point & rhs ) { 	return ( lhs.x < rhs.x ) ; }
+
+ostream & operator<< ( ostream & out, const Point & p )
+{
+	out << "(" << p.x << "," << p.type << ")" ;
+	return out ;
+}
 
 
-template <typename Range>
-ostream & operator<< ( ostream & out, const Interval<Range> & interval )
+struct Interval
+{
+	Point a, b ;
+	Interval( const Point & a, const Point & b ) : a(a), b(b) {} ;
+};
+
+ostream & operator<< ( ostream & out, const Interval & interval )
 {
 	out << '(' << interval.a << ',' << interval.b << ')' ;
 	return out ;
 }
 
-template <typename Range>
-bool operator< ( const Interval<Range> & lhs, const Interval<Range> & rhs )
+bool operator< ( const Interval & lhs, const Interval & rhs )
 {
 	if ( lhs.a < rhs.a ) return true ;
-	if ( lhs.a > rhs.a ) return false ;
+	if ( rhs.a < lhs.a ) return false ;
 	if ( lhs.b < rhs.b ) return true ;
 	return false ;
 }
+
+
+
+
+
+//typedef Interval<double> dInterval ;
+typedef map<Interval,int> LevelStore ;
+
+void populate_level_store( set<Point> & points, LevelStore & store, double left_bound, double right_bound )
+{
+	int level = 0 ;
+
+	typedef typename set<Point>::iterator PointSetIterator ;
+	PointSetIterator fragit = points.begin() ;
+	while ( true )
+	{
+		PointSetIterator lbound = fragit++ ;
+		if ( fragit == points.end() ) break ;
+
+		int type = lbound->type ;
+		Point a = *lbound, b = *fragit ;
+		//double a = lbound->x, b = fragit->x ;
+
+		level += type ;	// the contribution of the point on left
+		//store[level] += b - a ; // the interval length
+
+		//cout << '(' << a << ',' << b << ')'
+				//<< " at level " << level << endl ;
+
+		store[ Interval(a,b) ] = level ;
+	}
+	//cout << "level supports: " << level_supp << endl ;
+}
+
+
 
 
 
@@ -176,53 +198,77 @@ int main( int argc, char * argv [] )
 	cout << "P equals " << P << endl ;
 	cout << "Q equals " << Q << endl ;
 
-
-
 	/* ALGORITHM */
-
-	/* insert points into a segment, mark type */
-	typedef map<real_type,int> p_coord_to_type ;
-	p_coord_to_type segment ;
-	segment[0] = 0 ; segment[LENGTH] = 0 ;
+	set<Point> segment ;
 
 	vector<real_type>::iterator it ;
-	for ( it=P.begin() ; it != P.end() ; it++ ) segment[*it] = 1 ;
-	for ( it=Q.begin() ; it != Q.end() ; it++ ) segment[*it] = -1 ;
+	for ( it=P.begin() ; it != P.end() ; it++ ) segment.insert( Point(*it,1) ) ;
+	for ( it=Q.begin() ; it != Q.end() ; it++ ) segment.insert( Point(*it,-1) ) ;
 
 	cout << "all points: " << segment << endl ;
 
-	/* do a cumulative sum to compute level support */
-	typedef map<int,real_type> level_support_map ;
-	level_support_map level_supp ;
-
-	typedef Interval<real_type> myinterval_type ;
-	map< myinterval_type, int > level_store ;
+	LevelStore store ;
+	populate_level_store( segment, store, 0, LENGTH ) ;
+	// get_level_store( segment, 0, LENGTH ) ;
+	cout << "level store: " << store << endl ;
 
 
-	int level = 0 ;
-	p_coord_to_type::iterator fragit = segment.begin() ;
-	while ( true )
-	{
-		p_coord_to_type::iterator lbound ;
-		lbound = fragit++ ;
-		if ( fragit == segment.end() ) break ;
-
-		int type = lbound->second ;
-		real_type a = lbound->first, b = fragit->first ;\
-
-		level += type ;	// the contribution of the point on left
-		level_supp[level] += b - a ; // the interval length
-
-		cout << '(' << a << ',' << b << ')'
-				<< " at level " << level << endl ;
-
-		level_store[ myinterval_type(a,b) ] = level ;
-	}
-
-	cout << "level supports: " << level_supp << endl ;
-	cout << "level store: " << level_store << endl ;
 
 	/* given the level store, we can compute a matching */
+	typedef adjacency_list<> easygraph ;	// not a roadnet; doesn't need multi-ness
+
+	/* assign a graph vertex to each node */
+	typedef typename graph_traits<easygraph>::vertex_descriptor
+			vertex_type ;
+	map< Point, vertex_type > points_to_verts ;
+	map< vertex_type, Point > verts_to_points ;
+	easygraph G ;
+
+	for ( set<Point>::iterator
+			p_it = segment.begin() ;
+			p_it != segment.end() ;
+			++p_it )
+	{
+		vertex_type u = add_vertex( G ) ;
+		points_to_verts[ *p_it ] = u ;
+		verts_to_points[ u ] = *p_it ;
+	}
+
+	cout << verts_to_points << endl ;
+
+	/* add an edge corresponding to each interval */
+	for ( LevelStore::iterator
+			s_it = store.begin() ;
+			s_it != store.end() ;
+			++s_it )
+	{
+		vertex_type u, v ;
+		u = points_to_verts[ s_it->first.a ] ;
+		v = points_to_verts[ s_it->first.b ] ;
+
+		if ( s_it->second > 0 ) add_edge( u, v, G ) ;
+		else if ( s_it->second < 0 ) add_edge( v, u, G ) ;
+	}
+
+	/* list the edges, see if it works */
+	typedef typename graph_traits<easygraph>::edge_iterator edge_iter_type ;
+
+	pair< edge_iter_type, edge_iter_type > edge_bounds = edges( G ) ;
+//	for ( edge_iter_type e_it = edge_bounds.first ; e_it != edge_bounds.second ; ++e_it )
+//	{
+		// cout << source( *e_it, G ) << "->" << target( *e_it, G ) << endl ;
+//	}
+
+
+
+#if false
+
+
+
+	/* perform the matching */
+
+
+
 
 
 	/* compute partial sums to obtain alpha and beta,
@@ -253,7 +299,7 @@ int main( int argc, char * argv [] )
 
 
 	/* construct the matching graph */
-
+#endif
 
 
 	return 0 ;
