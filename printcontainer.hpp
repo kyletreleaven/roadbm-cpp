@@ -70,6 +70,18 @@ ostream & operator<< ( ostream & out, const set<ElementType> & myset )
 }
 
 
+template < typename ElementType >
+ostream & operator<< ( ostream & out, const list<ElementType> & mylist )
+{
+	out << "[ " ;
+	for ( typename list<ElementType>::const_iterator
+			it = mylist.begin() ; it != mylist.end() ; ++it )
+	{
+		out << *it << ", " ;
+	}
+	out << " ]" ;
+	return out ;
+}
 
 
 
