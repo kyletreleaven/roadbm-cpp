@@ -117,6 +117,17 @@ struct place_data
 	typedef list<int> index_container_type ;
 	index_container_type P_indices ;
 	index_container_type Q_indices ;
+
+	void annihilate( list< pair<int,int> > & match )
+	{
+		while ( !P_indices.empty() && !Q_indices.empty() )
+		{
+			int i, j ;
+			i = P_indices.front() ; P_indices.pop_front() ;
+			j = Q_indices.front() ; Q_indices.pop_front() ;
+			match.push_back( pair<int,int>( i, j ) ) ;
+		}
+	}
 };
 
 ostream & operator<< ( ostream & out, const place_data & pd )
@@ -138,6 +149,28 @@ struct interval_data
 };
 
 
+
+
+
+template< typename ElementType >
+vector<ElementType>
+shuffle( const vector<ElementType> & vec, const vector<int> & order )
+{
+	int vec_count = vec.size() ;
+	int order_count = order.size() ;
+
+	vector<int> inverse( vec_count, -1 ) ;
+	for ( int i=0 ; i<order_count ; i++ ) inverse[ order[i] ] = i ;
+
+	vector<ElementType> res( order_count ) ;
+	for ( int j=0 ; j<vec_count ; j++ )
+	{
+		if ( inverse[j] < 0 ) continue ;
+		res[ inverse[j] ] = vec[j] ;
+	}
+
+	return res ;
+}
 
 
 
@@ -173,17 +206,7 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 	for ( segment_type::iterator
 			it = segment.begin() ; it != segment.end() ; ++it )
 	{
-		place_data & temp = it->second ;
-		list<int> & PP = temp.P_indices ;
-		list<int> & QQ = temp.Q_indices ;
-
-		while ( !PP.empty() && !QQ.empty() )
-		{
-			int i, j;
-			i = PP.front() ; PP.pop_front() ;
-			j = QQ.front() ; QQ.pop_front() ;
-			final_match.push_back( pair<int,int>( i, j ) ) ;
-		}
+		it->second.annihilate( final_match ) ;
 	}
 
 	cout << "segment = " << segment << endl ;
@@ -191,13 +214,13 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 
 	/* prepare the instance graph */
 	intgraph g ;
-	vector<double> places ;		// index of places *is* vertex id
+	vector< segment_type::iterator > places ;		// index of places *is* vertex id
 	/* assign a graph vertex to each node */
 	for ( segment_type::iterator
 			it = segment.begin() ; it != segment.end() ; ++it )
 	{
 		g.new_vertex() ;
-		places.push_back( it->first ) ;
+		places.push_back( it ) ;
 	}
 
 	/* construct the instance graph */
@@ -234,8 +257,44 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 
 	cout << "graph " << g << endl ;
 
-	list<int> order = toposort( g ) ;
-	cout << "order" << order << endl ;
+	list<int> order_list = toposort( g ) ;
+	cout << "order list " << order_list << endl ;
+
+	/* enumerate the places in the topological order and distribute the queues */
+	vector<int> order( order_list.begin(), order_list.end() ) ;
+	for ( int i=0 ; i < order.size() ; i++ )
+	{
+		int u = order[i] ;
+		segment_type::iterator it = places[u] ;
+		// annihilate if you can
+		place_data & source = it->second ;
+		source.annihilate( final_match ) ;
+
+		// split your lists --- remember, P is *always* the positive queue after annihilation (b/c topo)
+		set<int> u_out_edges = g.AdjV[u] ;
+		for ( set<int>::iterator
+				e_it = u_out_edges.begin() ; e_it != u_out_edges.end() ; ++e_it )
+		{
+			int e = *e_it ;
+			int v = g.AdjE[e].second ;
+			place_data & target = places[v]->second ;
+			int capacity = edge_weight[e] ;
+
+			list<int> & sP = source.P_indices, &tP = target.P_indices ;
+			if ( capacity < sP.size() )
+			{
+				list<int>::iterator stop ;
+				stop = sP.begin() ; advance( stop, capacity ) ;
+				tP.splice( tP.end(), sP, sP.begin(), stop ) ;
+			}
+			else	// this branch is constant time!
+			{
+				tP.splice( tP.end(), sP ) ;
+			}
+		}
+	}
+
+	cout << "final match? " << final_match << endl ;
 
 
 #if false
@@ -305,6 +364,8 @@ int main( int argc, char * argv [] )
 		Q[i] = LENGTH * uniform() ;
 	}
 
+	sort( P.begin(), P.end() ) ;
+	sort( Q.begin(), Q.end() ) ;
 	cout << "P equals " << P << endl ;
 	cout << "Q equals " << Q << endl ;
 
