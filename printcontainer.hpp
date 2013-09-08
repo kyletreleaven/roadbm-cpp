@@ -86,9 +86,6 @@ ostream & operator<< ( ostream & out, const list<ElementType> & mylist )
 
 
 
-
-
-
-
 #endif /* PRINTMAP_HPP_ */
+
 

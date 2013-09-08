@@ -21,17 +21,14 @@
 #include <algorithm>
 
 // boost graph
-#include "boost/graph/adjacency_list.hpp"
+#include "toposort.hpp"
 
 // utility
 #include "printcontainer.hpp"
 
-// objects
-//#include "Interval.hpp"
-
 
 using namespace std ;
-using namespace boost ;
+//using namespace boost ;
 
 //int screwdriver = numeric_limits<int>::min() ;
 //int intmax = numeric_limits<int>::max() ;
@@ -142,6 +139,10 @@ struct interval_data
 
 
 
+
+
+
+
 list< pair<int,int> >
 MATCH( const vector<double> & P, const vector<double> & Q, double length )
 {
@@ -186,8 +187,55 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 	}
 
 	cout << "segment = " << segment << endl ;
+	cout << "PREMATCH = " << final_match << endl ;
 
-	cout << "MATCH = " << final_match << endl ;
+	/* prepare the instance graph */
+	intgraph g ;
+	vector<double> places ;		// index of places *is* vertex id
+	/* assign a graph vertex to each node */
+	for ( segment_type::iterator
+			it = segment.begin() ; it != segment.end() ; ++it )
+	{
+		g.new_vertex() ;
+		places.push_back( it->first ) ;
+	}
+
+	/* construct the instance graph */
+	vector<int> edge_weight ;		// index is edge id
+
+	{	// don't want to intrude on local scope
+		segment_type::iterator lbound, rbound ;
+		rbound = segment.begin() ;
+		int idx = 0, level = 0 ;
+		while ( true )
+		{
+			lbound = rbound++ ;
+			if ( rbound == segment.end() ) break ;
+
+			place_data & temp = lbound->second ;
+			level += temp.P_indices.size() - temp.Q_indices.size() ;
+
+			// possibly make an edge
+			int e ;
+			if ( level > 0 )
+			{
+				e = g.new_edge( idx, idx+1 ) ;
+				edge_weight.push_back( level ) ;
+			}
+			else if ( level < 0 )
+			{
+				e = g.new_edge( idx+1, idx ) ;
+				edge_weight.push_back( -level ) ;
+			}
+
+			idx++ ;
+		}
+	}
+
+	cout << "graph " << g << endl ;
+
+	list<int> order = toposort( g ) ;
+	cout << "order" << order << endl ;
 
 
 #if false
@@ -266,24 +314,6 @@ int main( int argc, char * argv [] )
 
 #if false
 	/* given the level store, we can compute a matching */
-	typedef adjacency_list<> easygraph ;	// not a roadnet; doesn't need multi-ness
-
-	/* assign a graph vertex to each node */
-	typedef typename graph_traits<easygraph>::vertex_descriptor
-			vertex_type ;
-	map< Point, vertex_type > points_to_verts ;
-	map< vertex_type, Point > verts_to_points ;
-	easygraph G ;
-
-	for ( set<Point>::iterator
-			p_it = segment.begin() ;
-			p_it != segment.end() ;
-			++p_it )
-	{
-		vertex_type u = add_vertex( G ) ;
-		points_to_verts[ *p_it ] = u ;
-		verts_to_points[ u ] = *p_it ;
-	}
 
 	cout << verts_to_points << endl ;
 
