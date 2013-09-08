@@ -285,11 +285,11 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 			{
 				list<int>::iterator stop ;
 				stop = sP.begin() ; advance( stop, capacity ) ;
-				tP.splice( tP.end(), sP, sP.begin(), stop ) ;
+				tP.splice( tP.begin(), sP, sP.begin(), stop ) ;
 			}
 			else	// this branch is constant time!
 			{
-				tP.splice( tP.end(), sP ) ;
+				tP.splice( tP.begin(), sP ) ;
 			}
 		}
 	}
@@ -364,8 +364,8 @@ int main( int argc, char * argv [] )
 		Q[i] = LENGTH * uniform() ;
 	}
 
-	sort( P.begin(), P.end() ) ;
-	sort( Q.begin(), Q.end() ) ;
+	//sort( P.begin(), P.end() ) ;
+	//sort( Q.begin(), Q.end() ) ;
 	cout << "P equals " << P << endl ;
 	cout << "Q equals " << Q << endl ;
 
