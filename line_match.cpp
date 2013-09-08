@@ -6,6 +6,7 @@
 #include "assert.h"
 
 // stdc++
+#include <cmath>
 #include <iostream>
 
 #include <limits>
@@ -42,74 +43,6 @@ double uniform()
 }
 
 
-struct place_key
-{
-	double y ;		// the ordering parameter
-	queue<int> P_indices, Q_indices ;
-} ;
-
-bool operator< ( const place_key & k1, const place_key & k2 ) { return k1.y < k2.y ; }
-
-
-#if false
-/* define point data and its ordering */
-struct point_data
-{
-	double x ;
-	int type ;
-
-	point_data( double x, int type ) : x(x), type(type) {} ;
-};
-
-bool operator< ( const point_data & p1, const point_data & p2 )
-{
-	//return this->x < p2.x ;
-	return p1.x < p2.x ;
-}
-
-ostream & operator<< ( ostream & out, const point_data & pdata )
-{
-	out << '(' << pdata.x << ',' << pdata.type << ')' ;
-	return out;
-}
-#endif
-
-/* define surplus data */
-struct surplus_data
-{
-	double a, b ;
-	int level ;
-
-	surplus_data( double a, double b, int level ) : a(a), b(b), level(level) {} ;
-};
-
-bool operator< ( const surplus_data & s1, const surplus_data & s2 )
-{
-	if ( s1.a < s2.a ) return true ;
-	if ( s2.a < s1.a ) return false ;
-	if ( s1.b < s2.b ) return true ;
-	return false ;
-}
-
-ostream & operator<< ( ostream & out, const surplus_data & data )
-{
-	out << "{ (" << data.a << ',' << data.b << ") => " << data.level << " }" ;
-	return out;
-}
-
-/* define line data */
-struct line_data
-{
-	double slope ;
-	double offset ;
-};
-
-ostream & operator<< ( ostream & out, const line_data & data )
-{
-	out << '<' << data.slope << "*y + " << data.offset << '>' ;
-	return out;
-}
-
 
 
 struct place_data
@@ -140,37 +73,7 @@ ostream & operator<< ( ostream & out, const place_data & pd )
 
 
 
-struct level_data
-{
-};
 
-struct interval_data
-{
-};
-
-
-
-
-
-template< typename ElementType >
-vector<ElementType>
-shuffle( const vector<ElementType> & vec, const vector<int> & order )
-{
-	int vec_count = vec.size() ;
-	int order_count = order.size() ;
-
-	vector<int> inverse( vec_count, -1 ) ;
-	for ( int i=0 ; i<order_count ; i++ ) inverse[ order[i] ] = i ;
-
-	vector<ElementType> res( order_count ) ;
-	for ( int j=0 ; j<vec_count ; j++ )
-	{
-		if ( inverse[j] < 0 ) continue ;
-		res[ inverse[j] ] = vec[j] ;
-	}
-
-	return res ;
-}
 
 
 
@@ -214,7 +117,7 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 
 	/* prepare the instance graph */
 	intgraph g ;
-	vector< segment_type::iterator > places ;		// index of places *is* vertex id
+	vector< segment_type::iterator > places ;		// index of a place *is* it's graph vertex id
 	/* assign a graph vertex to each node */
 	for ( segment_type::iterator
 			it = segment.begin() ; it != segment.end() ; ++it )
@@ -227,13 +130,15 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 	vector<int> edge_weight ;		// index is edge id
 
 	{	// don't want to intrude on local scope
+		int level = 0 ;		// someday, will be z_r, instead
+
 		segment_type::iterator lbound, rbound ;
 		rbound = segment.begin() ;
-		int idx = 0, level = 0 ;
+		int idx = 0 ;	// left node index
 		while ( true )
 		{
 			lbound = rbound++ ;
-			if ( rbound == segment.end() ) break ;
+			if ( rbound == segment.end() ) break ;		// no intervals left
 
 			place_data & temp = lbound->second ;
 			level += temp.P_indices.size() - temp.Q_indices.size() ;
@@ -260,7 +165,7 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 	list<int> order_list = toposort( g ) ;
 	cout << "order list " << order_list << endl ;
 
-	/* enumerate the places in the topological order and distribute the queues */
+	/* enumerate the places in the topological order and push the queues around */
 	vector<int> order( order_list.begin(), order_list.end() ) ;
 	for ( int i=0 ; i < order.size() ; i++ )
 	{
@@ -270,8 +175,10 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 		place_data & source = it->second ;
 		source.annihilate( final_match ) ;
 
-		// split your lists --- remember, P is *always* the positive queue after annihilation (b/c topo)
-		set<int> u_out_edges = g.AdjV[u] ;
+		// split your lists ---
+		// remember, P is *always* the positive queue after annihilation (b/c topo)
+		// to be "fair", make sure to pre-pend the source list in *front* of the target one
+		set<int> & u_out_edges = g.AdjV[u] ;
 		for ( set<int>::iterator
 				e_it = u_out_edges.begin() ; e_it != u_out_edges.end() ; ++e_it )
 		{
@@ -281,7 +188,7 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 			int capacity = edge_weight[e] ;
 
 			list<int> & sP = source.P_indices, &tP = target.P_indices ;
-			if ( capacity < sP.size() )
+			if ( capacity < sP.size() )		// then, we *have* to suffer linear time
 			{
 				list<int>::iterator stop ;
 				stop = sP.begin() ; advance( stop, capacity ) ;
@@ -294,50 +201,35 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 		}
 	}
 
-	cout << "final match? " << final_match << endl ;
-
-
-#if false
-	/* take a cumulative sum and obtain F, also mapping from level to support */
-	vector< surplus_data > match_levels ;
-	map< int, double > support ;
-	support[INT_MIN] = 0. ;
-	support[INT_MAX] = 0. ;
-
-	vector< point_data >::const_iterator lbound, rbound ;
-	rbound = segment.begin() ;
-	while ( true )
-	{
-		lbound = rbound++ ;
-		if ( rbound == segment.end() ) break ;
-
-		static int level = 0 ;
-		level += lbound->type ;
-		double a = lbound->x, b = rbound->x ;
-
-		match_levels.push_back( surplus_data( a, b, level ) ) ;
-		support[level] += ( b - a ) ;
-	}
-	// no sorts necessary
-
-	cout << match_levels << endl ;
-	cout << support << endl ;
-
-	/* create lines data */
-	vector< line_data > lines ;
-	line_data temp ;
-
-
-	map< int, double>::const_iterator supp_it ;
-	for ( supp_it = support.begin() ; supp_it != support.end() ; supp++ )
-	{
-
-	}
-
-#endif
+	cout << "final match " << final_match << endl ;
 
 	return final_match ;
 }
+
+
+
+
+struct match_cost_func
+{
+	const vector<double> & P ;
+	const vector<double> & Q ;
+
+	match_cost_func( const vector<double> & P, const vector<double> & Q ) :
+		P(P), Q(Q) {} ;
+
+	double operator() ( const list< pair<int,int> > & match )
+	{
+		double res = 0. ;
+
+		for ( list< pair<int,int> >::const_iterator
+				it = match.begin() ; it != match.end() ; ++it )
+		{
+			res += abs( P[it->first] - Q[it->second] ) ;
+		}
+
+		return res ;
+	}
+};
 
 
 
@@ -364,13 +256,23 @@ int main( int argc, char * argv [] )
 		Q[i] = LENGTH * uniform() ;
 	}
 
-	//sort( P.begin(), P.end() ) ;
-	//sort( Q.begin(), Q.end() ) ;
 	cout << "P equals " << P << endl ;
 	cout << "Q equals " << Q << endl ;
 
+
+	/* I think this will adapt to the sorting, since P and Q are references */
+	match_cost_func match_cost( P, Q ) ;
+
 	/* ALGORITHM */
-	MATCH( P, Q, LENGTH ) ;
+	list< pair<int,int> > match1, match2 ;
+
+	match1 = MATCH( P, Q, LENGTH ) ;
+	cout << "unsorted match cost: " << match_cost( match1 ) << endl ;
+
+	sort( P.begin(), P.end() ) ;
+	sort( Q.begin(), Q.end() ) ;
+	match2 = MATCH( P, Q, LENGTH ) ;
+	cout << "sorted match cost: " << match_cost( match2 ) << endl ;
 
 
 #if false
