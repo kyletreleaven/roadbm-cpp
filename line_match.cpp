@@ -92,8 +92,111 @@ ostream & operator << ( ostream & out, const interval_struct & I )
 
 
 
+typedef map< double, place_data > segment_type ;
+typedef LinearArrangement<vertex_struct,interval_struct> Arrangement ;
 
 
+Arrangement
+segment_cost_characterization( const segment_type & segment )
+{
+	/* obtain the level supports of F */
+	double zerocost = 0. ;		// cost of a matching with "zero assistance"
+	map<int, double> level_support ;
+	{
+		int level = 0 ;
+		segment_type::const_iterator lbound, rbound ;
+		for ( rbound = segment.begin(), lbound = rbound++ ;
+				rbound != segment.end() ; lbound++, rbound++ )
+		{
+			double y1, y2, len ;
+			y1 = lbound->first, y2 = rbound->first, len = y2 - y1 ;
+			const place_data & temp = lbound->second ;
+
+			level += temp.P_indices.size() - temp.Q_indices.size() ;
+			zerocost += len * abs( level ) ;
+			level_support[level] += len ;
+		}
+	}
+	cout << "supports " << level_support << endl ;
+
+	/* create a linear arrangement from level supports */
+	Arrangement value_arr ;
+
+	//int numlevels = level_support.size() ;
+	//list<vertex_struct> 		vertex_data ;
+	//list<interval_struct> 		interval_data ;
+
+	double length = 0. ;
+	for ( map<int,double>::iterator
+			it = level_support.begin() ; it != level_support.end() ; ++it )
+	{
+		int 	f		= it->first ;
+		double	supp 	= it->second ;
+		Arrangement::Vertex & v = value_arr.insert( f ) ;
+		v.local_data.support = supp ;
+
+		length += supp ;
+	}
+
+	// about to traverse the arrangement
+	Arrangement::Vertex 	* v_left = & value_arr.vertices.begin()->second ;
+	Arrangement::Vertex 	* v_zero ;
+	Arrangement::Interval 	* I_left = & *v_left->left ;
+
+	// some initialization
+	//interval_data.push_front( interval_struct() ) ;
+	I_left->local_data.slope = length ;		// length won't compile...
+
+	Arrangement::Vertex		* v_curr ;
+	Arrangement::Interval	* I_curr ;
+
+	// traverse left-to-right to compute slopes
+	{
+		double slope = I_left->local_data.slope ;
+		v_curr = v_left ;
+		while ( true )
+		{
+			if ( (int) v_curr->y == 0 ) v_zero = v_curr ;		// remember the zero vertex, plox
+
+			I_curr = & *v_curr->right ;
+			slope -= 2 * v_curr->local_data.support ;
+			I_curr->local_data.slope = slope ;
+
+			if ( I_curr->right == NULL ) break ;
+			v_curr = I_curr->right ;
+		}
+	}
+
+	// traverse zero-to-left, then zero-to-right, to obtain offsets
+	{
+		double offset = zerocost ;
+		v_curr = v_zero ;
+		while ( true )
+		{
+			I_curr = & *v_curr->left ;
+			I_curr->local_data.offset = offset ;
+			offset -= I_curr->local_data.slope * I_curr->length() ;	// subtract, since negative direction
+
+			if ( I_curr->left == NULL ) break ;
+			v_curr = I_curr->left ;
+		}
+	}
+	{
+		double offset = zerocost ;
+		v_curr = v_zero ;
+		while ( true )
+		{
+			I_curr = & *v_curr->right ;
+			I_curr->local_data.offset = offset ;
+			offset += I_curr->local_data.slope * I_curr->length() ;	// add, since positive direction
+
+			if ( I_curr->right == NULL ) break ;
+			v_curr = I_curr->right ;
+		}
+	}
+
+	return value_arr ;
+}
 
 
 
@@ -107,7 +210,6 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 	list< pair<int,int> > final_match ;
 
 	/* sort indices of P and Q into place_data situated on a segment */
-	typedef map< double, place_data > segment_type ;
 	segment_type segment ;
 	segment[0.] ; segment[length] ;		// create the endpoints
 
@@ -125,9 +227,6 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 	}
 
 	/* pre-process the place_data to determine immediate matches */
-	// testing
-	//segment[0.].P_indices.push_back( -1 ) ;
-	//segment[0.].Q_indices.push_back( -1 ) ;
 	for ( segment_type::iterator
 			it = segment.begin() ; it != segment.end() ; ++it )
 	{
@@ -138,114 +237,16 @@ MATCH( const vector<double> & P, const vector<double> & Q, double length )
 	cout << "PREMATCH = " << final_match << endl ;
 
 
-
-
-
-
-	/* obtain the level supports of F */
-	double zerocost = 0. ;		// cost of a matching with "zero assistance"
-	map<int, double> level_support ;
+	Arrangement value_arr = segment_cost_characterization( segment ) ;
+	list< interval_struct > interval_data ;
+	Arrangement::Interval * I_curr = & *value_arr.vertices.begin()->second.left ;	// gross
+	while ( true )
 	{
-		int level = 0 ;
-		segment_type::iterator lbound, rbound ;
-		for ( rbound = segment.begin(), lbound = rbound++ ;
-				rbound != segment.end() ; lbound++, rbound++ )
-		{
-			double y1, y2, len ;
-			y1 = lbound->first, y2 = rbound->first, len = y2 - y1 ;
-			place_data & temp = lbound->second ;
-
-			level += temp.P_indices.size() - temp.Q_indices.size() ;
-			zerocost += len * abs( level ) ;
-			level_support[level] += len ;
-		}
+		interval_data.push_back( I_curr->local_data ) ;
+		if ( I_curr->right == NULL ) break ;
+		I_curr = & *I_curr->right->right ;
 	}
-	cout << "supports " << level_support << endl ;
-
-	/* create a linear arrangement from level supports */
-	typedef LinearArrangement<vertex_struct,interval_struct> Arrangement ;
-	Arrangement value_arr ;
-
-	int numlevels = level_support.size() ;
-	list<vertex_struct> 		vertex_data ;
-	list<interval_struct> 		interval_data ;
-
-	for ( map<int,double>::iterator
-			it = level_support.begin() ; it != level_support.end() ; ++it )
-	{
-		int f = it->first ;
-		Arrangement::Vertex & v = value_arr.insert( f ) ;
-		vertex_data.push_front( vertex_struct() ) ;
-		v.p_data = & vertex_data.front() ;
-		v.p_data->support = it->second ;
-	}
-
-	// about to traverse the arrangement
-	Arrangement::Vertex 	* v_left = & value_arr.vertices.begin()->second ;
-	Arrangement::Vertex 	* v_zero ;
-	Arrangement::Interval 	* I_left = & *v_left->left ;
-
-	// some initialization
-	interval_data.push_front( interval_struct() ) ;
-	I_left->p_data = & interval_data.front() ;
-	I_left->p_data->slope = length ;
-
-	Arrangement::Vertex		* v_curr ;
-	Arrangement::Interval	* I_curr ;
-
-	// traverse left-to-right to compute slopes
-	{
-		double slope = I_left->p_data->slope ;
-		v_curr = v_left ;
-		while ( true )
-		{
-			if ( (int) v_curr->y == 0 ) v_zero = v_curr ;		// remember the zero vertex, plox
-
-			I_curr = & *v_curr->right ;
-			interval_data.push_front( interval_struct() ) ;
-			I_curr->p_data = & interval_data.front() ;
-
-			slope -= 2 * v_curr->p_data->support ;
-			I_curr->p_data->slope = slope ;
-
-			if ( I_curr->right == NULL ) break ;
-			v_curr = I_curr->right ;
-		}
-	}
-
-	// traverse zero-to-left, then zero-to-right, to obtain offsets
-	{
-		double offset = zerocost ;
-		v_curr = v_zero ;
-		while ( true )
-		{
-			I_curr = & *v_curr->left ;
-			I_curr->p_data->offset = offset ;
-			offset -= I_curr->p_data->slope * I_curr->length() ;	// subtract, since negative direction
-
-			if ( I_curr->left == NULL ) break ;
-			v_curr = I_curr->left ;
-		}
-	}
-	{
-		double offset = zerocost ;
-		v_curr = v_zero ;
-		while ( true )
-		{
-			I_curr = & *v_curr->right ;
-			I_curr->p_data->offset = offset ;
-			offset += I_curr->p_data->slope * I_curr->length() ;	// subtract, since negative direction
-
-			if ( I_curr->right == NULL ) break ;
-			v_curr = I_curr->right ;
-		}
-	}
-
 	cout << "lines: " << interval_data << endl ;
-
-
-
-
 
 
 

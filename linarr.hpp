@@ -44,7 +44,7 @@ struct LinearArrangement
 		// stop flip-flopping; these have to be interval_iters to facilitate Interval removal
 		interval_iter_type left, right ;
 
-		VDataType * p_data ;
+		VDataType local_data ;
 
 		friend ostream &
 		operator<< ( ostream & out, const Vertex & v )
@@ -57,7 +57,7 @@ struct LinearArrangement
 	struct Interval
 	{
 		Vertex * left, * right ;
-		IDataType * p_data ;
+		IDataType local_data ;
 
 		Interval() : left(NULL), right(NULL) {} ;
 		Interval( const Vertex & l, const Vertex & r ) : left( &l ), right( &r ) {} ;
