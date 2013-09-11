@@ -37,10 +37,10 @@ using namespace std ;
 using namespace boost ;
 
 
-struct no_data {} ;
+struct no_graph_data {} ;
 
 template < typename VertexType, typename EdgeType,
-	class VDataType = no_data, class EDataType = no_data >
+	class VDataType = no_graph_data, class EDataType = no_graph_data >
 struct simple_graph
 {
 	struct Vertex ;
