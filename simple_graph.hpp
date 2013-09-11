@@ -41,57 +41,33 @@ struct no_data {} ;
 
 template < typename VertexType, typename EdgeType,
 	class VDataType = no_data, class EDataType = no_data >
-class simple_graph
+struct simple_graph
 {
-public :
 	struct Vertex ;
 	struct Edge ;
 
 	typedef map<VertexType, Vertex>							vertex_container ;
 	typedef typename vertex_container::iterator				vertex_iterator ;
-	typedef typename vertex_container::const_iterator			vertex_const_iterator ;
 	typedef map<EdgeType,Edge>								edge_container ;
 	typedef typename edge_container::iterator					edge_iterator ;
-	typedef typename edge_container::const_iterator			edge_const_iterator ;
 
 	// class vertex_iterator : public typename map<VertexType,Vertex>::iterator {} ;
 	//class edge_iterator : public typename map<EdgeType,Edge>::iterator {} ;
 
-private :
 	// containers
 	vertex_container			V ;
 	edge_container				E ;
 
-public :
-	const vertex_container & vertices() const
+	struct Vertex
 	{
-		return V ;
-	}
-
-	const edge_container & edges() const
-	{
-		return E ;
-	}
-
-	class Vertex
-	{
-		friend class simple_graph ;		// automatic by parentage?
-		list< edge_iterator > _out_edges ;
-
-	public :
+		list< edge_iterator > out_edges ;
 		VDataType local_data ;
-		const list< edge_iterator > & out_edges() { return _out_edges ; }
 	};
 
-	class Edge
+	struct Edge
 	{
-		friend class simple_graph ;
-		vertex_iterator _tail, _head ;
-
-	public :
+		vertex_iterator tail, head ;
 		EDataType local_data ;
-		vertex_iterator tail() { return _tail ; }
-		vertex_iterator head() { return _head ; }
 	};
 
 	vertex_iterator find_vertex( const VertexType & u ) { return V.find( u ) ; }
@@ -102,29 +78,29 @@ public :
 		return find_vertex( u ) ;
 	}
 
-	edge_iterator edge( const EdgeType & e ) { return E.find( e ) ; }
+	edge_iterator find_edge( const EdgeType & e ) { return E.find( e ) ; }
 
 	edge_iterator edge( const EdgeType & e, vertex_iterator u, vertex_iterator v )
 	{
-		edge_iterator it = edge( e ) ;
+		edge_iterator it = find_edge( e ) ;
 		assert( it == E.end() ) ;
 
-		Edge & ee = E[e] ;	// creates
-		ee._tail = u ;
-		ee._head = v ;
+		Edge & edge = E[e] ;	// creates
+		edge.tail = u ;
+		edge.head = v ;
 
-		it = edge( e ) ;
+		it = find_edge( e ) ;
 		Vertex & t = u->second ;
-		t._out_edges.push_back( it ) ;
+		t.out_edges.push_back( it ) ;
 
 		return it ;
 	}
 
 	void remove_edge( edge_iterator it )
 	{
-		Edge & e = it->second ;
-		Vertex & t = e._tail->second ;
-		t._out_edges.erase( it ) ;
+		Edge & edge = it->second ;
+		Vertex & t = edge.tail->second ;
+		t.out_edges.erase( it ) ;
 
 		E.erase( it ) ;
 	}
@@ -133,7 +109,7 @@ public :
 	{
 		Vertex & u = it->second ;
 		for ( edge_iterator
-				e_it = u._out_edges.begin() ; e_it != u._out_edges.end() ; ++e_it )
+				e_it = u.out_edges.begin() ; e_it != u.out_edges.end() ; ++e_it )
 		{
 			remove_edge( e_it ) ;
 		}
@@ -144,14 +120,12 @@ public :
 	friend ostream & operator<< ( ostream & out, simple_graph & graph )
 	{
 		out << "{ " ;
-		for ( typename edge_container::const_iterator
-				it = graph.edges().begin() ;
-				it != graph.edges().end() ;
-				++it )
+		for ( edge_iterator
+				it = graph.E.begin() ; it != graph.E.end() ; ++it )
 		{
 			out << it->first << " => ("
-					<< it->second.tail()->first << ','
-					<< it->second.head()->first
+					<< it->second.tail->first << ','
+					<< it->second.head->first
 					<< "), " ;
 		}
 		out << " }" ;
@@ -159,13 +133,6 @@ public :
 	}
 
 };
-
-
-
-
-
-
-
 
 
 
