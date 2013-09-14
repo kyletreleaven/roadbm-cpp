@@ -153,10 +153,20 @@ struct LinearArrangement
 		return new_vert ;
 	}
 
+	Vertex & vertex( double y )
+	{
+		Interval & I = interval_of( y ) ;
+		Vertex & u = *I.left ;
+
+		if ( y == u.y )
+			return u ;
+		else
+			return insert( y ) ;
+	}
+
+	Interval & operator[] ( double y ) { return interval_of( y ) ; }
+
 	/* no removal... yet! */
 };
-
-
-
 
 
