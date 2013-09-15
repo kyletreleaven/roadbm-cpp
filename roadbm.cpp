@@ -145,7 +145,7 @@ int main( int argc, char * argv [] )
 	map< typename rmtraits::RoadID, segment_type > sorted ;
 	// sorted = roadmap_bpsort<rmtraits>( P, Q ) ;
 
-	roadmap_bpsort( P, Q ) ;
+	roadmap_bpsort<rmtraits>( P, Q ) ;
 
 	//cout << roadmap_bpsort<rmtraits>( P, Q ) << endl ;
 

@@ -1,8 +1,11 @@
 
 #pragma once
 
+#include <iostream>
 #include "Roadmap.hpp"
 #include "linarr.hpp"
+
+using namespace std ;
 
 
 struct place_data
@@ -49,7 +52,7 @@ ostream & operator<< ( ostream & out, const segment_type & seg )
 
 
 /* sort indices of P and Q into place_data situated on each segment of a roadmap */
-template < typename RMTraits >
+template < class RMTraits >
 map< typename RMTraits::RoadID ,
 	segment_type > roadmap_bpsort(		const typename RMTraits::AddressVector & P,
 										const typename RMTraits::AddressVector & Q )
@@ -61,31 +64,41 @@ map< typename RMTraits::RoadID ,
 	/* also, will need to populate each road with a left-most/right-most */
 	//segment_type segment ;
 	//segment[0.] ; segment[length] ;		// create the endpoints
+	cout << "P contains " << P.size() << " points." << endl ;
 
 	/* filter P */
 	for ( int i=0 ; i < P.size() ; i++ )
 	{
-		cout << i << ", " ;
 		const road_id_type
 				road 	= P[i].road ;
 		double	y 		= P[i].y ;
-
+		//cout << "inserting addr: (" << road << ',' << y << ")" << endl ;
 		segment_type & segment = sorted[ road ] ;
-		segment.vertex(y).local_data.P_indices.push_back( i ) ;
+		//cout << "segment chosen" << endl ;
+		segment_type::Vertex & u = segment.vertex(y) ;
+		//cout << "vertex isolated" << endl ;
+		u.local_data.P_indices.push_back( i ) ;
 	}
-	cout << endl ;
 
+	cout << "P arrangement: " << sorted << endl ;
+	//cout << "moving on..." << endl ;
+
+	cout << "Q contains " << Q.size() << " points." << endl ;
 	/* filter Q */
 	for ( int i=0 ; i < Q.size() ; i++ )
 	{
 		const road_id_type
 				road 	= Q[i].road ;
 		double	y 		= Q[i].y ;
-
 		segment_type & segment = sorted[ road ] ;
-		segment.vertex(y).local_data.Q_indices.push_back( i ) ;
+		segment_type::Vertex & u = segment.vertex(y) ;
+		u.local_data.Q_indices.push_back( i ) ;
 	}
+
+	cout << "Arrangement: " << sorted << endl ;
 
 	return sorted ;
 }
+
+
 

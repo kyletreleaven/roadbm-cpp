@@ -155,6 +155,9 @@ struct LinearArrangement
 
 	Vertex & vertex( double y )
 	{
+		if ( vertices.empty() )
+			return insert( y ) ;
+
 		Interval & I = interval_of( y ) ;
 		Vertex & u = *I.left ;
 
