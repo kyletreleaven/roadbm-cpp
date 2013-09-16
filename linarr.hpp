@@ -108,8 +108,12 @@ struct LinearArrangement
 		else
 		{
 			map_iter_type it = vertices.upper_bound( y ) ;
-			--it ;
-			return it->second.right ;
+			if( it == vertices.end() )
+			{
+			    --it ;
+			    return it->second.right;
+			}
+			return it->second.left ;
 		}
 	}
 
@@ -158,11 +162,12 @@ struct LinearArrangement
 		if ( vertices.empty() )
 			return insert( y ) ;
 
-		Interval & I = interval_of( y ) ;
-		Vertex & u = *I.left ;
 
-		if ( y == u.y )
-			return u ;
+		Interval & I = interval_of( y ) ;
+		Vertex*    u = I.left;
+
+		if ( u && y == u->y )
+			return *u;
 		else
 			return insert( y ) ;
 	}
