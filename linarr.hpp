@@ -15,12 +15,10 @@
 #include "boost/scoped_ptr.hpp"
 
 
-using namespace std ;
-using namespace boost ;
-
 struct no_data {} ;
 
 
+///
 template< class VDataType = no_data, class IDataType = no_data >
 struct LinearArrangement
 {
@@ -28,12 +26,12 @@ struct LinearArrangement
 	struct Interval ;
 
 	/* typedefs */
-	typedef typename list<Interval>::iterator		interval_iter_type ;
+	typedef typename std::list<Interval>::iterator		interval_iter_type ;
 
 
 	/* member data */
-	map< double,Vertex > 	vertices ;
-	list< Interval >		intervals ;
+	std::map< double,Vertex > 	vertices ;
+	std::list< Interval >		intervals ;
 
 	interval_iter_type		whole_line ;
 
@@ -46,8 +44,8 @@ struct LinearArrangement
 
 		VDataType local_data ;
 
-		friend ostream &
-		operator<< ( ostream & out, const Vertex & v )
+		friend std::ostream &
+		operator<< ( std::ostream & out, const Vertex & v )
 		{
 			out << v.y ;
 			return out ;
@@ -63,8 +61,8 @@ struct LinearArrangement
 		Interval( const Vertex & l, const Vertex & r ) : left( &l ), right( &r ) {} ;
 		Interval( Vertex * l, Vertex * r ) : left(l), right(r) {} ;
 
-		friend ostream &
-		operator<< ( ostream & out, const Interval & I )
+		friend std::ostream &
+		operator<< ( std::ostream & out, const Interval & I )
 		{
 			out << '(' ;
 			if ( I.left == NULL )
@@ -99,7 +97,7 @@ struct LinearArrangement
 	/* member functions */
 	interval_iter_type find( double y ) const
 	{
-		typedef typename map<double,Vertex>::const_iterator map_iter_type ;
+		typedef typename std::map<double,Vertex>::const_iterator map_iter_type ;
 
 		if ( vertices.empty() )
 		{
@@ -124,7 +122,7 @@ struct LinearArrangement
 		interval_iter_type it = find( y ) ;
 		Interval & curr = *it ;
 
-		cout << y << " contained in " << curr << endl ;
+		std::cout << y << " contained in " << curr << std::endl ;
 
 		Vertex * p_u, * p_v ;
 		p_u = curr.left, p_v = curr.right ;
@@ -144,8 +142,8 @@ struct LinearArrangement
 		new_vert.right = intervals.begin() ;
 		if ( p_v != NULL ) p_v->left = new_vert.right ;
 
-		cout << "splitting into: " ;
-		cout << *new_vert.left << " and " << *new_vert.right << endl ;
+		std::cout << "splitting into: " ;
+		std::cout << *new_vert.left << " and " << *new_vert.right << std::endl ;
 
 		// destroy the old interval
 		intervals.erase( it ) ;
