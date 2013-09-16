@@ -26,7 +26,11 @@
 
 #include "linarr.hpp"
 
+
 int main( int argc, char** argv )
 {
+    LinearArrangement<> arr;
+    for(int i=0; i < 10; i++)
+        arr.vertex( rand() % 100 );
     return 0;
 }

@@ -18,7 +18,6 @@
 struct no_data {} ;
 
 
-///
 template< class VDataType = no_data, class IDataType = no_data >
 struct LinearArrangement
 {
@@ -120,7 +119,7 @@ struct LinearArrangement
 	{
 		// find the interval containing y
 		interval_iter_type it = find( y ) ;
-		Interval & curr = *it ;
+		Interval curr = *it ;
 
 		std::cout << y << " contained in " << curr << std::endl ;
 
@@ -135,18 +134,21 @@ struct LinearArrangement
 		new_vert.y = y ;
 
 		// make two new Intervals, with all the right pointers
-		intervals.push_front( Interval( p_u, &new_vert ) ) ;
-		new_vert.left = intervals.begin() ;
+		Interval new_left(  p_u, &new_vert );
+		Interval new_right( &new_vert, p_v );
+
+		new_vert.left  = intervals.insert( it, new_left );
+		new_vert.right = intervals.insert( it, new_right );
+		intervals.erase(it);
+
 		if ( p_u != NULL ) p_u->right = new_vert.left ;
-		intervals.push_front( Interval( &new_vert, p_v ) ) ;
-		new_vert.right = intervals.begin() ;
 		if ( p_v != NULL ) p_v->left = new_vert.right ;
 
 		std::cout << "splitting into: " ;
 		std::cout << *new_vert.left << " and " << *new_vert.right << std::endl ;
 
 		// destroy the old interval
-		intervals.erase( it ) ;
+		// intervals.erase( it ) ;
 
 		return new_vert ;
 	}
